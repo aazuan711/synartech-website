@@ -1,0 +1,38 @@
+name: Deploy SynarTech Website
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/synartech-website
+
+            git pull origin main
+
+            docker stop synartech-web || true
+            docker rm synartech-web || true
+
+            docker build -t synartech-website:latest .
+
+            docker run -d \
+              --name synartech-web \
+              --restart unless-stopped \
+              -p 80:80 \
+              -p 443:443 \
+              -v /etc/nginx/ssl:/etc/nginx/ssl:ro \
+              synartech-website:latest
